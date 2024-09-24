@@ -1,0 +1,6 @@
+sievedata
+opencv-python
+numpy==1.24.4
+mediapipe==0.10.9
+ffmpeg-python
+scikit-image
