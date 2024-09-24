@@ -10,7 +10,9 @@ The entire pipeline is built and hosted on [Sieve](https://sievedata.com).
 
 ## Usage
 
-This repository contains the code for the pipeline we deploy to Sieve. It's meant for the developer community to have a nice way to experiment with lipsyncing pipelines. If you'd like to run this without Sieve, you may choose to swap out the model dependencies found at the top of `main.py` with MuseTalk, LivePortrait, and CodeFormer implementations.
+This repository contains the code for the pipeline we deploy to Sieve. It's meant for the developer community to have a nice way to experiment with lipsyncing pipelines. The community may find our implementation of face alignment and the pipeline architecture useful.
+
+If you'd like to run this without Sieve, you may choose to swap out the model dependencies found at the top of `main.py` with MuseTalk, LivePortrait, and CodeFormer implementations.
 
 ### Through the public API
 
