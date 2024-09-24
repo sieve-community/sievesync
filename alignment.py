@@ -103,17 +103,20 @@ def process_video(in_path, out_path):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(out_path, fourcc, fps, (512, 512))
 
+    # Smooth the frames to reduce the number of transforms and make the alignment less jumpy
     smooth_frames = 5
     transform_info = {'fps': fps, 'transforms': [], 'frame_count': total_frames}
 
     quad_history = deque(maxlen=smooth_frames)
     last_valid_quad = None
+    # Count of frames without a face
     no_face_count = 0
     face_areas = []
     landmark_buffer = deque(maxlen=5)
 
     initial_frames = []
     initial_landmarks = []
+    # Get the first 10 frames and their landmarks, ensures it doesn't start with an unaligned frame
     for _ in range(10):
         ret, frame = cap.read()
         if not ret:
@@ -125,6 +128,7 @@ def process_video(in_path, out_path):
             if len(initial_landmarks) >= 3:
                 break
 
+    # Calculate the average landmarks and transform for the initial frames
     if initial_landmarks:
         avg_landmarks = np.mean(initial_landmarks, axis=0)
         for i, frame in enumerate(initial_frames):
@@ -138,6 +142,7 @@ def process_video(in_path, out_path):
             face_area = cv2.contourArea(face_hull)
             face_areas.append(face_area / (width * height))
 
+    # Threshold for how much the landmarks can move between frames before we consider it a new face and reset the transform
     landmark_distance_threshold = 75
     last_valid_landmarks = avg_landmarks if initial_landmarks else None
 
@@ -149,6 +154,7 @@ def process_video(in_path, out_path):
             break
         lm = get_landmarks(frame)
         if lm is not None:
+            # If the landmarks have moved too much, reset the transform
             if last_valid_landmarks is not None:
                 distance = np.mean(np.linalg.norm(lm - last_valid_landmarks, axis=1))
                 if distance > landmark_distance_threshold:
@@ -156,6 +162,7 @@ def process_video(in_path, out_path):
                     last_valid_quad = quad
                     last_valid_landmarks = lm
                 else:
+                    # Smooth the transform over time to make it less jumpy
                     quad = get_transform_params(lm)
                     last_valid_quad = 0.8 * last_valid_quad + 0.2 * quad if last_valid_quad is not None else quad
                     last_valid_landmarks = 0.8 * last_valid_landmarks + 0.2 * lm
@@ -173,6 +180,7 @@ def process_video(in_path, out_path):
             
             landmark_buffer.append(lm)
         else:
+            # If no face is detected, increment the counter
             no_face_count += 1
             frames_without_landmarks += 1
             if no_face_count < 5 and landmark_buffer:
@@ -184,10 +192,12 @@ def process_video(in_path, out_path):
                 lm = None
 
         if no_face_count < 15 and last_valid_quad is not None:
+            # If the face is detected, align the frame
             aligned_frame, M = align_face(frame, last_valid_quad)
             out.write(aligned_frame)
             transform_info['transforms'].append((M, frame.shape, frame_num, last_valid_landmarks))
         else:
+            # If no face is detected, resize the frame to 512x512
             aspect_ratio = width / height
             if aspect_ratio > 1:
                 new_width, new_height = 512, int(512 / aspect_ratio)
@@ -198,6 +208,7 @@ def process_video(in_path, out_path):
             
             canvas = np.zeros((512, 512, 3), dtype=np.uint8)
             
+            # Center the frame in the canvas
             pad_x, pad_y = (512 - new_width) // 2, (512 - new_height) // 2
             
             canvas[pad_y:pad_y+new_height, pad_x:pad_x+new_width] = resized_frame
@@ -208,6 +219,7 @@ def process_video(in_path, out_path):
     cap.release()
     out.release()
 
+    # If more than 40% of frames don't have any faces, raise an error
     if frames_without_landmarks / total_frames > 0.4:
         raise ValueError("More than 40% of frames don't have any faces.")
 
@@ -221,13 +233,37 @@ def process_video(in_path, out_path):
 
     return transform_info
 
+# Alignment functions
+# Image ones are used predominantly for testing, video ones are used for the actual pipeline
+
 def align_image(input_path, output_path):
+    """
+    Aligns the image
+
+    :param input_path: The path to the image to align
+    :param output_path: The path to save the aligned image
+    :return: The transformation matrix and the shape of the original image
+    """
     return process_image(input_path, output_path) if os.path.exists(input_path) and input_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')) else (None, None)
 
 def align_video(input_path, output_path):
+    """
+    Aligns the video
+
+    :param input_path: The path to the video to align
+    :param output_path: The path to save the aligned video
+    :return: The transformation matrix and the shape of the original image
+    """
     return process_video(input_path, output_path) if os.path.exists(input_path) and input_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')) else None
 
 def align_media(input_path, output_path):
+    """
+    Aligns the media (image or video)
+
+    :param input_path: The path to the media to align
+    :param output_path: The path to save the aligned media
+    :return: The transformation matrix and the shape of the original image
+    """
     if not os.path.exists(input_path):
         return None
 
@@ -239,6 +275,14 @@ def align_media(input_path, output_path):
         return None
 
 def unalign_media(aligned_path, source_path, transform_info, output_path):
+    """
+    Unaligns the media (image or video)
+
+    :param aligned_path: The path to the aligned media
+    :param source_path: The path to the source media
+    :param transform_info: The transformation matrix and the shape of the original image
+    :param output_path: The path to save the unaligned media
+    """
     if not os.path.exists(aligned_path) or not os.path.exists(source_path):
         return
 
@@ -248,6 +292,15 @@ def unalign_media(aligned_path, source_path, transform_info, output_path):
         unalign_video(aligned_path, source_path, transform_info, output_path)
 
 def unalign_image(aligned_path, source_path, M, original_shape, output_path):
+    """
+    Unaligns the image
+
+    :param aligned_path: The path to the aligned image
+    :param source_path: The path to the source image
+    :param M: The transformation matrix
+    :param original_shape: The shape of the original image
+    :param output_path: The path to save the unaligned image
+    """
     aligned_img = cv2.imread(aligned_path)
     source_img = cv2.imread(source_path)
     if M is not None:
@@ -264,6 +317,13 @@ def unalign_image(aligned_path, source_path, M, original_shape, output_path):
         cv2.imwrite(output_path, source_img)
 
 def create_face_mask(landmarks, shape):
+    """
+    Creates a face mask
+
+    :param landmarks: The landmarks of the face
+    :param shape: The shape of the image
+    :return: The face mask
+    """
     mask = np.zeros(shape[:2], dtype=np.uint8)
     if landmarks is not None and len(landmarks) > 0:
         face_landmarks = landmarks[0:468].astype(np.int32)
@@ -273,6 +333,12 @@ def create_face_mask(landmarks, shape):
     return mask
 
 def process_frame(args):
+    """
+    Processes the frame
+
+    :param args: The frame number, aligned frame, source frame, transformation matrix, original shape, and landmarks
+    :return: The frame number and the processed frame
+    """
     i, aligned_frame, source_frame, M, original_shape, landmarks = args
     if M is not None and landmarks is not None:
         unaligned_frame = unalign_face(aligned_frame, M, original_shape)
@@ -292,6 +358,13 @@ def process_frame(args):
         return i, source_frame
 
 def match_histograms(source, reference):
+    """
+    Matches the histograms of the source and reference images
+
+    :param source: The source image
+    :param reference: The reference image
+    :return: The matched image
+    """
     if source.ndim == 3 and reference.ndim == 3:
         multi_mask = np.all(source != 0, axis=2)
         result = source.copy()
@@ -306,6 +379,14 @@ def match_histograms(source, reference):
         return exposure.match_histograms(source, reference)
 
 def unalign_video(aligned_path, source_path, transform_info, output_path):
+    """
+    Unaligns the video
+
+    :param aligned_path: The path to the aligned video
+    :param source_path: The path to the source video
+    :param transform_info: The transformation matrix and the shape of the original image
+    :param output_path: The path to save the unaligned video
+    """
     aligned_cap = cv2.VideoCapture(aligned_path)
     source_cap = cv2.VideoCapture(source_path)
     
