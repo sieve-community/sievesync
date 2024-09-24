@@ -21,7 +21,7 @@ metadata = sieve.Metadata(
 )
 
 @sieve.function(
-    name="lipsync",
+    name="sievesync",
     python_packages=["opencv-python", "numpy==1.24.4", "mediapipe==0.10.11", "ffmpeg-python", "scikit-image"],
     system_packages=["ffmpeg"],
     metadata=metadata,
