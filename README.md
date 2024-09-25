@@ -38,3 +38,18 @@ sieve deploy
 ```
 
 You should then see a URL you can use to access your deployed function via the playground or API. As you make changes to the code, you can redeploy with the same command and you'll have an easy-to-use playground and production-ready API to test your changes.
+
+You can also run this deployed function or Sieve's public function in a few lines of Python code:
+
+```python
+import sieve
+
+# Run Sieve's public function
+# You can change the slug to your deployed function's name
+result = sieve.function.get("sieve/lipsync").run(
+    file=sieve.File("elon-main.mp4"),
+    audio=sieve.File("elon-spanish.wav"),
+)
+
+print("Output video: ", result.path)
+```
