@@ -11,7 +11,7 @@ from alignment import align_media, unalign_media
 musetalk = sieve.function.get("sieve/musetalk:f2108181-bf55-43a6-bc5e-6725ba663a12")
 codeformer = sieve.function.get("sieve/codeformer:bae00b7f-60de-4a2a-af53-37c2082ae709")
 audio_enhance = sieve.function.get("sieve/audio_enhancement:b20446a0-4fed-4b8b-a303-b9b08f07d70d")
-liveportrait = sieve.function.get("sieve/liveportrait:f5f20f7b-e4a4-41bb-8306-1d7b522ffba7")
+liveportrait = sieve.function.get("sieve/liveportrait:fe136066-be0e-4de1-84f0-b04f0604e036")
 
 metadata = sieve.Metadata(
     title="SieveSync",
